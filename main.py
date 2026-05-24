@@ -33,7 +33,10 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 RESULT_DIR.mkdir(exist_ok=True)
 STATIC_DIR.mkdir(exist_ok=True)
 
-
+@app.get("/api/ping")
+def ping():
+    return {"status": "ok", "message": "server is running"}
+    
 @app.get("/", response_class=HTMLResponse)
 def home():
     index_path = STATIC_DIR / "index.html"
