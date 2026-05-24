@@ -48,13 +48,17 @@ async def translate_ppt(file: UploadFile = File(...)):
             }
         )
 
+    original_name = Path(file.filename).stem
+    safe_name = original_name.replace(" ", "_")
+    
     file_id = str(uuid.uuid4())
+    
     input_filename = f"{file_id}.pptx"
-    output_filename = f"{file_id}_en.pptx"
-
+    output_filename = f"{safe_name}_en.pptx"
+    
     input_path = UPLOAD_DIR / input_filename
     output_path = RESULT_DIR / output_filename
-
+    
     content = await file.read()
     input_path.write_bytes(content)
 
