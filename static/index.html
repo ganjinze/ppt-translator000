@@ -138,9 +138,11 @@
         statusDiv.innerText = "当前状态：正在上传和处理，请等待...";
 
         try {
-            const response = await fetch("/api/translate-ppt", {
-            method: "POST",
-            body: formData
+            const apiUrl = window.location.origin + "/api/translate-ppt";
+
+            const response = await fetch(apiUrl, {
+                method: "POST",
+                body: formData
             });
 
             
