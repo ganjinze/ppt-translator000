@@ -139,11 +139,21 @@
 
         try {
             const response = await fetch("/api/translate-ppt", {
-                method: "POST",
-                body: formData
+            method: "POST",
+            body: formData
             });
 
-            const result = await response.json();
+            
+            const text = await response.text();
+            console.log("服务器返回：", text);
+            
+            let result;
+            try {
+                result = JSON.parse(text);
+            } catch (e) {
+                statusDiv.innerText = "当前状态：服务器返回的不是JSON：" + text;
+                return;
+            }
 
             if (result.status === "success") {
                 statusDiv.innerText = "当前状态：处理完成";
@@ -156,7 +166,8 @@
                 statusDiv.innerText = "当前状态：处理失败，" + result.message;
             }
         } catch (error) {
-            statusDiv.innerText = "当前状态：请求失败，可能是服务器暂时不可用";
+            console.error(error);
+            statusDiv.innerText = "当前状态：请求失败：" + error.message;
         } finally {
             uploadBtn.disabled = false;
         }
