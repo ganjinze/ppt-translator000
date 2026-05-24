@@ -7,6 +7,7 @@ from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pptx import Presentation
+
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="PPT Translator")
