@@ -88,26 +88,45 @@ async def translate_ppt(file: UploadFile = File(...)):
         
         MAX_TRANSLATE_COUNT = 80
         
-        for slide_index, slide in enumerate(prs.slides):
-            for shape_index, shape in enumerate(slide.shapes):
-                if shape.has_text_frame:
+        
+        def collect_text_shapes(shapes, slide_index, prefix=""):
+            for shape_index, shape in enumerate(shapes):
+                current_id = f"{prefix}shape_{shape_index}"
+        
+                # 1. 普通文本框
+                if hasattr(shape, "has_text_frame") and shape.has_text_frame:
                     original_text = shape.text.strip()
         
-                    if original_text:
-                        item_id = f"slide_{slide_index}_shape_{shape_index}"
+                    if original_text and len(text_items) < MAX_TRANSLATE_COUNT:
+                        item_id = f"slide_{slide_index}_{current_id}"
         
-                        if len(text_items) < MAX_TRANSLATE_COUNT:
-                            text_items.append({
-                                "id": item_id,
-                                "text": original_text
-                            })
+                        text_items.append({
+                            "id": item_id,
+                            "text": original_text
+                        })
         
-                            shape_map[item_id] = {
-                                "shape": shape,
-                                "source_text": original_text
-                            }
+                        shape_map[item_id] = {
+                            "shape": shape,
+                            "source_text": original_text
+                        }
+        
+                # 2. 组合对象 GroupShape，递归继续找
+                if hasattr(shape, "shapes"):
+                    collect_text_shapes(
+                        shape.shapes,
+                        slide_index,
+                        prefix=current_id + "_"
+                    )
+        
+        
+        for slide_index, slide in enumerate(prs.slides):
+            collect_text_shapes(slide.shapes, slide_index)
+        
+        print("Collected text boxes:", len(text_items))
         
         translations = batch_translate_by_doubao(text_items)
+        
+        print("Received translations:", len(translations))
         
         for item_id, info in shape_map.items():
             shape = info["shape"]
