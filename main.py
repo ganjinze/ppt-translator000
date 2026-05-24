@@ -77,7 +77,7 @@ async def translate_ppt(file: UploadFile = File(...)):
                     original_text = shape.text.strip()
 
                     if original_text:
-                        translated_text = fake_translate(original_text)
+                        translated_text = translate_text_by_doubao(original_text)
                         shape.text = translated_text
                         simple_reduce_font(shape, original_text, translated_text)
 
@@ -118,18 +118,52 @@ def download_file(filename: str):
     )
 
 
-def fake_translate(text: str) -> str:
-    """
-    第一版临时翻译函数。
-    现在先不接 GPT / 豆包 API，只用它验证：
-    1. 上传是否成功；
-    2. PPT 是否能被读取；
-    3. 文本是否能被替换；
-    4. 新 PPT 是否能下载。
+def translate_text_by_doubao(text: str) -> str:
+    if not text.strip():
+        return text
 
-    后面再把这个函数替换成真正的大模型翻译。
-    """
-    return "[EN] " + text
+    model = os.getenv("ARK_MODEL")
+
+    if not os.getenv("ARK_API_KEY"):
+        return "[ARK_API_KEY_MISSING] " + text
+
+    if not model:
+        return "[ARK_MODEL_MISSING] " + text
+
+    prompt = f"""
+你是一个专业的 PPT 中英翻译助手。
+请将下面的中文 PPT 文本翻译成英文。
+
+要求：
+1. 保持原意，不要扩写；
+2. 译文适合放在 PPT 中，尽量简洁；
+3. 保留数字、公式、变量名、英文缩写；
+4. 如果原文已经是英文、数字或公式，可以保持不变；
+5. 只输出译文，不要解释。
+
+待翻译文本：
+{text}
+"""
+
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.2,
+        )
+
+        translated_text = response.choices[0].message.content.strip()
+
+        if not translated_text:
+            return text
+
+        return translated_text
+
+    except Exception as e:
+        print("Doubao translation failed:", str(e))
+        return text
 
 
 def simple_reduce_font(shape, source_text: str, translated_text: str):
