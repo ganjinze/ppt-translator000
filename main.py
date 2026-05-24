@@ -7,9 +7,17 @@ from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pptx import Presentation
-
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="PPT Translator")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 client = OpenAI(
     api_key=os.getenv("ARK_API_KEY"),
