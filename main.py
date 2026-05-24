@@ -2,6 +2,7 @@ import os
 import uuid
 from pathlib import Path
 from openai import OpenAI
+import json
 
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
