@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>PPT 自动翻译工具</title>
+    <style>
+        body {
+            font-family: Arial, "Microsoft YaHei", sans-serif;
+            background: #f5f6f8;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            width: 600px;
+            margin: 80px auto;
+            background: white;
+            padding: 32px;
+            border-radius: 12px;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+        }
+
+        h1 {
+            margin-top: 0;
+            font-size: 26px;
+            color: #222;
+        }
+
+        p {
+            color: #555;
+            line-height: 1.6;
+        }
+
+        .upload-box {
+            margin-top: 24px;
+            padding: 24px;
+            border: 2px dashed #bbb;
+            border-radius: 10px;
+            text-align: center;
+            background: #fafafa;
+        }
+
+        input[type="file"] {
+            margin: 16px 0;
+        }
+
+        button {
+            margin-top: 16px;
+            padding: 10px 24px;
+            border: none;
+            border-radius: 6px;
+            background: #2f6fed;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            background: #aaa;
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin-top: 24px;
+            padding: 12px;
+            border-radius: 6px;
+            background: #f0f2f5;
+            color: #333;
+        }
+
+        .download {
+            margin-top: 20px;
+        }
+
+        .download a {
+            color: #2f6fed;
+            font-weight: bold;
+            text-decoration: none;
+        }
+
+        .note {
+            margin-top: 24px;
+            font-size: 14px;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>PPT 自动翻译工具</h1>
+
+    <p>
+        上传一个中文 PPTX 文件，系统会提取普通文本框中的文字，并生成一个英文版 PPTX 文件。
+    </p>
+
+    <div class="upload-box">
+        <input type="file" id="pptFile" accept=".pptx">
+        <br>
+        <button id="uploadBtn" onclick="uploadPPT()">开始翻译</button>
+    </div>
+
+    <div class="status" id="status">
+        当前状态：等待上传
+    </div>
+
+    <div class="download" id="downloadBox"></div>
+
+    <div class="note">
+        第一版只支持 .pptx 文件，只处理普通文本框。图片、截图、复杂图表中的文字暂不翻译。
+    </div>
+</div>
+
+<script>
+    async function uploadPPT() {
+        const fileInput = document.getElementById("pptFile");
+        const statusDiv = document.getElementById("status");
+        const downloadBox = document.getElementById("downloadBox");
+        const uploadBtn = document.getElementById("uploadBtn");
+
+        downloadBox.innerHTML = "";
+
+        if (!fileInput.files.length) {
+            statusDiv.innerText = "当前状态：请先选择一个 PPTX 文件";
+            return;
+        }
+
+        const file = fileInput.files[0];
+
+        if (!file.name.toLowerCase().endsWith(".pptx")) {
+            statusDiv.innerText = "当前状态：目前只支持 .pptx 文件";
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        uploadBtn.disabled = true;
+        statusDiv.innerText = "当前状态：正在上传和处理，请等待...";
+
+        try {
+            const response = await fetch("/api/translate-ppt", {
+                method: "POST",
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.status === "success") {
+                statusDiv.innerText = "当前状态：处理完成";
+                downloadBox.innerHTML = `
+                    <a href="${result.download_url}" target="_blank">
+                        点击下载英文版 PPT
+                    </a>
+                `;
+            } else {
+                statusDiv.innerText = "当前状态：处理失败，" + result.message;
+            }
+        } catch (error) {
+            statusDiv.innerText = "当前状态：请求失败，可能是服务器暂时不可用";
+        } finally {
+            uploadBtn.disabled = false;
+        }
+    }
+</script>
+</body>
+</html>
