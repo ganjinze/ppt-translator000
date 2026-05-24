@@ -83,15 +83,40 @@ async def translate_ppt(file: UploadFile = File(...)):
     try:
         prs = Presentation(str(input_path))
 
-        for slide in prs.slides:
-            for shape in slide.shapes:
+        text_items = []
+        shape_map = {}
+        
+        MAX_TRANSLATE_COUNT = 80
+        
+        for slide_index, slide in enumerate(prs.slides):
+            for shape_index, shape in enumerate(slide.shapes):
                 if shape.has_text_frame:
                     original_text = shape.text.strip()
-
+        
                     if original_text:
-                        translated_text = translate_text_by_doubao(original_text)
-                        shape.text = translated_text
-                        simple_reduce_font(shape, original_text, translated_text)
+                        item_id = f"slide_{slide_index}_shape_{shape_index}"
+        
+                        if len(text_items) < MAX_TRANSLATE_COUNT:
+                            text_items.append({
+                                "id": item_id,
+                                "text": original_text
+                            })
+        
+                            shape_map[item_id] = {
+                                "shape": shape,
+                                "source_text": original_text
+                            }
+        
+        translations = batch_translate_by_doubao(text_items)
+        
+        for item_id, info in shape_map.items():
+            shape = info["shape"]
+            source_text = info["source_text"]
+        
+            translated_text = translations.get(item_id, source_text)
+        
+            shape.text = translated_text
+            simple_reduce_font(shape, source_text, translated_text)
 
         prs.save(str(output_path))
 
@@ -130,31 +155,55 @@ def download_file(filename: str):
     )
 
 
-def translate_text_by_doubao(text: str) -> str:
-    if not text.strip():
-        return text
+def batch_translate_by_doubao(text_items):
+    """
+    批量调用豆包翻译 PPT 文本。
+    text_items 格式：
+    [
+        {"id": "slide_0_shape_1", "text": "研究背景"},
+        {"id": "slide_0_shape_2", "text": "本文提出..."}
+    ]
+    """
+
+    if not text_items:
+        return {}
 
     model = os.getenv("ARK_MODEL")
 
     if not os.getenv("ARK_API_KEY"):
-        return "[ARK_API_KEY_MISSING] " + text
+        return {item["id"]: "[ARK_API_KEY_MISSING] " + item["text"] for item in text_items}
 
     if not model:
-        return "[ARK_MODEL_MISSING] " + text
+        return {item["id"]: "[ARK_MODEL_MISSING] " + item["text"] for item in text_items}
+
+    input_json = {
+        "items": text_items
+    }
 
     prompt = f"""
 你是一个专业的 PPT 中英翻译助手。
-请将下面的中文 PPT 文本翻译成英文。
+请将输入 JSON 中每个 item 的中文 text 翻译成英文。
 
 要求：
 1. 保持原意，不要扩写；
 2. 译文适合放在 PPT 中，尽量简洁；
 3. 保留数字、公式、变量名、英文缩写；
 4. 如果原文已经是英文、数字或公式，可以保持不变；
-5. 只输出译文，不要解释。
+5. 必须保留每个 item 的 id；
+6. 只返回 JSON，不要返回解释文字；
+7. 返回格式必须如下：
 
-待翻译文本：
-{text}
+{{
+  "items": [
+    {{
+      "id": "slide_0_shape_1",
+      "translated_text": "Research Background"
+    }}
+  ]
+}}
+
+待翻译 JSON：
+{json.dumps(input_json, ensure_ascii=False)}
 """
 
     try:
@@ -166,17 +215,28 @@ def translate_text_by_doubao(text: str) -> str:
             temperature=0.2,
         )
 
-        translated_text = response.choices[0].message.content.strip()
+        content = response.choices[0].message.content.strip()
 
-        if not translated_text:
-            return text
+        # 去掉模型可能返回的 ```json 包裹
+        if content.startswith("```"):
+            content = content.replace("```json", "").replace("```", "").strip()
 
-        return translated_text
+        result = json.loads(content)
+
+        translations = {}
+
+        for item in result.get("items", []):
+            item_id = item.get("id")
+            translated_text = item.get("translated_text")
+
+            if item_id and translated_text:
+                translations[item_id] = translated_text
+
+        return translations
 
     except Exception as e:
-        print("Doubao translation failed:", str(e))
-        return text
-
+        print("Batch Doubao translation failed:", str(e))
+        return {item["id"]: item["text"] for item in text_items}
 
 def simple_reduce_font(shape, source_text: str, translated_text: str):
     """
