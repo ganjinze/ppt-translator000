@@ -1,6 +1,7 @@
 import os
 import uuid
 from pathlib import Path
+from openai import OpenAI
 
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
@@ -9,6 +10,11 @@ from pptx import Presentation
 
 
 app = FastAPI(title="PPT Translator")
+
+client = OpenAI(
+    api_key=os.getenv("ARK_API_KEY"),
+    base_url="https://ark.cn-beijing.volces.com/api/v3",
+)
 
 BASE_DIR = Path(__file__).parent
 UPLOAD_DIR = BASE_DIR / "uploads"
